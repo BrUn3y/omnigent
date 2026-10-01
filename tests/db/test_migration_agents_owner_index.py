@@ -22,6 +22,12 @@ def _agent_indexes(engine: sa.Engine) -> dict[str, list[str]]:
     return {i["name"]: i["column_names"] for i in sa.inspect(engine).get_indexes("agents")}
 
 
+def _is_unique(engine: sa.Engine) -> bool:
+    return next(i for i in sa.inspect(engine).get_indexes("agents") if i["name"] == _INDEX)[
+        "unique"
+    ]
+
+
 def test_index_at_head(tmp_path: Path) -> None:
     engine = get_or_create_engine(f"sqlite:///{tmp_path / 'test.db'}")
     try:
@@ -32,6 +38,7 @@ def test_index_at_head(tmp_path: Path) -> None:
             "created_at",
             "id",
         ]
+        assert not _is_unique(engine), "session copies share owner+name, so it can't be unique"
     finally:
         clear_engine_cache()
 
