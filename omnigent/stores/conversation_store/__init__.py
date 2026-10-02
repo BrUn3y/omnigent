@@ -1860,6 +1860,21 @@ class ConversationStore(ABC):
         """
         ...
 
+    def list_session_roots_for_agent(self, agent_id: str, limit: int) -> list[str]:
+        """
+        Spawn-tree roots of up to *limit* sessions that use *agent_id*, unordered.
+
+        Forks of one user's sessions share an agent row, so several roots can
+        use it. Lets a caller be authorized by READ on any of them. Default:
+        none (stores without the lookup authorize against one root only).
+
+        :param agent_id: Agent id, e.g. ``"0f1a2b3c..."``.
+        :param limit: Most conversation rows to read, e.g. ``50``.
+        :returns: Distinct root conversation ids, possibly fewer than *limit*.
+        """
+        del agent_id, limit
+        return []
+
     @abstractmethod
     def has_other_live_session_in_workspace(
         self,

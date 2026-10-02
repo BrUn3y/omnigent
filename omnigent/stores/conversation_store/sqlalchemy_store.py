@@ -4898,6 +4898,24 @@ class SqlAlchemyConversationStore(ConversationStore):
 
         return _to_conversation(new_conv, fork_meta, fork_labels)
 
+    def list_session_roots_for_agent(self, agent_id: str, limit: int) -> list[str]:
+        """
+        Roots of up to *limit* sessions using *agent_id* (see the protocol docstring).
+
+        Unordered ``LIMIT`` over ``ix_conversations_agent_id``, so it reads at
+        most *limit* index entries; duplicates (children of one root) collapse.
+        """
+        with self._conv_session("list_session_roots_for_agent") as session:
+            roots = session.execute(
+                select(SqlConversation.root_conversation_id)
+                .where(
+                    SqlConversation.workspace_id == current_workspace_id(),
+                    SqlConversation.agent_id == agent_id,
+                )
+                .limit(limit)
+            ).scalars()
+            return list(dict.fromkeys(root for root in roots if root is not None))
+
     def has_other_live_session_in_workspace(
         self,
         *,
@@ -5112,10 +5130,9 @@ class SqlAlchemyConversationStore(ConversationStore):
                 )
             )
             if bound_agent_ids:
-                # Session-scoped agents are 1:1 with their conversation
-                # (forks always clone a fresh agent), so every binding
-                # collected from the deleted subtree is dead. Template
-                # agents are shared and survive via the kind guard.
+                # No surviving conversation uses these agents (a fork of the
+                # same user's session shares its row, so it counts as a
+                # reference above). Server agents survive via the kind guard.
                 session.execute(
                     delete(SqlAgent).where(
                         SqlAgent.workspace_id == current_workspace_id(),
